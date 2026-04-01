@@ -4,512 +4,223 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>EMSA — Stock de Inventario</title>
-<!--
-  EMSA — Dashboard Stock de Inventario
-  Vista SQL: INFORMAT_Vista_Stock_Actual_por_Bodegas_EMSA
-  Sheet: 1EmlOHAqIQzbcvDsqLcsCaFGYyJ0Pifmsjmv9j13z8Qo
-  Pestañas: stock_actual, stock_historico, meta
--->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#0d0f14;--bg2:#13161e;--bg3:#1a1d27;
-  --bdr:rgba(255,255,255,0.07);--bdr2:rgba(255,255,255,0.13);
-  --text:#e8eaf0;--muted:#7a7f94;
-  --acc:#2e74b5;--grn:#1d9e75;--red:#c94a4a;--amb:#d4890f;--pur:#9b6dd4;
-  --font:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
-
-  /* colores por clasificación */
-  --c-pt:  #3b8fd4;
-  --c-ins: #d4890f;
-  --c-mp:  #1d9e75;
-  --c-env: #9b6dd4;
-  --c-sin: #7a7f94;
-}
+:root{--bg:#0d0f14;--bg2:#13161e;--bg3:#1a1d27;--bdr:rgba(255,255,255,0.07);--bdr2:rgba(255,255,255,0.13);--text:#e8eaf0;--muted:#7a7f94;--acc:#7c3aed;--grn:#1d9e75;--red:#c94a4a;--amb:#d4890f;--font:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
-
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--bg);z-index:100}
-.badge{background:var(--pur);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:.5px}
+.badge{background:var(--acc);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:.5px}
 .htitle{font-size:15px;font-weight:500;margin-left:10px}
 .hsub{font-size:11px;color:var(--muted);margin-left:10px;margin-top:1px}
-.sync-row{display:flex;align-items:center;gap:12px}
-.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--grn);animation:pulse 2s infinite;flex-shrink:0}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-#last-sync{font-size:11px;color:var(--muted)}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--grn);animation:pulse 2s infinite;display:inline-block}
 .nav-links{display:flex;gap:4px;align-items:center}
-.nav-a{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;text-decoration:none;border:1px solid rgba(255,255,255,.12);color:var(--muted)}
-
+.nav-links a{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;text-decoration:none;border:1px solid rgba(255,255,255,.12);color:var(--muted)}
+.nav-links a.on{color:#a78bfa;border-color:rgba(124,58,237,.5);background:rgba(124,58,237,.1)}
 .tabs{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--bdr)}
 .tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
-.tab:hover{color:var(--text)}.tab.on{color:var(--text);border-bottom-color:var(--pur)}
-
+.tab:hover{color:var(--text)}.tab.on{color:var(--text);border-bottom-color:var(--acc)}
 main{padding:18px 20px 48px;max-width:1060px}
-
-/* KPIs */
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
 .kpi{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:13px 15px}
 .kpi-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
 .kpi-v{font-size:18px;font-weight:600;font-family:var(--mono);letter-spacing:-.5px}
 .kpi-s{font-size:11px;color:var(--muted);margin-top:3px}
-
-/* Cards */
 .card{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:20px 22px;margin-bottom:14px}
 .ch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .ct{font-size:14px;font-weight:500}.cs{font-size:11px;color:var(--muted);margin-top:2px}
 .leg{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
-.ll{width:16px;height:2px;border-radius:1px}
+.li{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+.ll{width:16px;height:2px;border-radius:1px;flex-shrink:0}
 .cw{position:relative;width:100%;height:260px}
-
-/* Clasificación pills */
-.cat-sel{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.cat-sel{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .cat-btn{padding:5px 14px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--bdr2);border-radius:20px;background:none;color:var(--muted);transition:all .15s}
-.cat-btn:hover{color:var(--text)}
-
-/* Tabla */
-.tbl{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;overflow:hidden}
+.cat-btn:hover{color:var(--text)}.cat-btn.on{font-weight:600;border-width:2px}
+.tbl{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;margin-bottom:14px}
 .tbl table{width:100%;border-collapse:collapse;font-size:12px}
 .tbl thead th{padding:9px 13px;text-align:right;font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:var(--bg3);border-bottom:1px solid var(--bdr);white-space:nowrap}
 .tbl thead th:first-child{text-align:left}
-.tbl tbody td{padding:8px 13px;border-bottom:1px solid var(--bdr);text-align:right;font-family:var(--mono);font-size:11px}
+.tbl tbody td{padding:8px 13px;border-bottom:1px solid var(--bdr);text-align:right;font-family:var(--mono);font-size:11px;color:var(--text)}
 .tbl tbody td:first-child{text-align:left;font-family:var(--font);font-size:12px}
 .tbl tbody tr:last-child td{border-bottom:none}
 .tbl tbody tr:hover td{background:rgba(255,255,255,.02)}
 .cdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
-
-/* Búsqueda */
-.search-wrap{position:relative;margin-bottom:14px}
-.search-wrap input{width:100%;padding:10px 16px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;outline:none}
-.search-wrap input:focus{border-color:var(--pur)}
-.search-wrap input::placeholder{color:var(--muted)}
-#ac-stock{position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--bdr2);border-radius:0 0 8px 8px;z-index:50;max-height:220px;overflow-y:auto;display:none}
+.sw{position:relative;margin-bottom:14px}
+.sw input{width:100%;padding:10px 16px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;outline:none}
+.sw input:focus{border-color:var(--acc)}
+.sw input::placeholder{color:var(--muted)}
+#pac{position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--bdr2);border-radius:0 0 8px 8px;z-index:50;max-height:220px;overflow-y:auto;display:none}
 .ac-item{padding:9px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bdr)}
 .ac-item:hover{background:var(--bg3)}
-
-/* Estado */
-.state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:360px;gap:12px;color:var(--muted);font-size:13px}
-.spinner{width:26px;height:26px;border:2px solid var(--bdr2);border-top-color:var(--pur);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.tag-cero{background:rgba(201,74,74,.12);color:var(--red);border-radius:4px;padding:2px 6px;font-size:10px;font-family:var(--font)}
-
-@media(max-width:600px){
-  header,main,.tabs{padding-left:14px;padding-right:14px}
-  .kpis{grid-template-columns:1fr 1fr}
-}
+.state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:12px;color:var(--muted);font-size:13px}
+.spinner{width:26px;height:26px;border:2px solid var(--bdr2);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+.stat{background:var(--bg3);border-radius:8px;padding:10px 12px}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-v{font-size:16px;font-weight:600;font-family:var(--mono)}
+@media(max-width:600px){header,main,.tabs{padding-left:14px;padding-right:14px}.kpis{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-
 <header>
   <div style="display:flex;align-items:center">
     <span class="badge">EMSA</span>
-    <div><span class="htitle">Stock de Inventario</span><div class="hsub">Productos Terminados · Insumos · Materias Primas</div></div>
+    <div><span class="htitle">Stock de Inventario</span><div class="hsub">Snapshot diario · todas las bodegas</div></div>
   </div>
-  <div class="sync-row">
+  <div style="display:flex;gap:12px;align-items:center">
     <div class="nav-links">
-      <a href="https://joaquinsilvanavia.github.io/emsa-proveedores/" class="nav-a">CxP</a>
-      <a href="https://joaquinsilvanavia.github.io/emsa-clientes/"    class="nav-a">CxC</a>
-      <a href="https://joaquinsilvanavia.github.io/emsa-ventas/"     class="nav-a">Ventas</a>
-      <a href="https://joaquinsilvanavia.github.io/emsa-stock/"      class="nav-a" style="color:var(--pur);border-color:rgba(155,109,212,.5);background:rgba(155,109,212,.1)">Stock</a>
+      <a href="https://joaquinsilvanavia.github.io/emsa-proveedores/">CxP</a>
+      <a href="https://joaquinsilvanavia.github.io/emsa-clientes/">CxC</a>
+      <a href="https://joaquinsilvanavia.github.io/emsa-ventas/">Ventas</a>
+      <a href="https://joaquinsilvanavia.github.io/emsa-stock/" class="on">Stock</a>
     </div>
-    <div style="display:flex;align-items:center;gap:5px"><span class="sync-dot"></span><span id="last-sync">Cargando...</span></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span class="sync-dot"></span>
+      <span id="ls" style="font-size:11px;color:var(--muted)">Cargando...</span>
+    </div>
   </div>
 </header>
-
 <div class="tabs">
-  <button class="tab on" onclick="showTab('actual',this)">Stock actual</button>
-  <button class="tab"    onclick="showTab('bodega',this)">Por bodega</button>
-  <button class="tab"    onclick="showTab('productos',this)">Búsqueda productos</button>
-  <button class="tab"    onclick="showTab('historico',this)">Evolución histórica</button>
+  <button class="tab on" onclick="sT('r',this)">Resumen general</button>
+  <button class="tab"    onclick="sT('b',this)">Por bodega</button>
+  <button class="tab"    onclick="sT('p',this)">Búsqueda producto</button>
+  <button class="tab"    onclick="sT('h',this)">Histórico</button>
 </div>
-
-<main id="mc">
-  <div class="state-box"><div class="spinner"></div><span>Cargando datos...</span></div>
-</main>
+<main id="mc"><div class="state-box"><div class="spinner"></div><span>Cargando datos...</span></div></main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-// ── AUTH ──────────────────────────────────────────────────────
-(function(){
-  var KEY='emsa_auth',PWD='LuisSilvaEMSA';
-  if(localStorage.getItem(KEY)===PWD)return;
-  var ok=false;
-  while(!ok){
-    var input=prompt('EMSA — Ingresa la clave de acceso:');
-    if(input===null){document.body.innerHTML='';return;}
-    if(input===PWD){localStorage.setItem(KEY,PWD);ok=true;}
-    else alert('Clave incorrecta. Intenta nuevamente.');
-  }
-})();
+(function(){var K='emsa_auth',P='LuisSilvaEMSA';if(localStorage.getItem(K)===P)return;var ok=false;while(!ok){var i=prompt('EMSA — Ingresa la clave de acceso:');if(i===null){document.body.innerHTML='';return;}if(i===P){localStorage.setItem(K,P);ok=true;}else alert('Clave incorrecta.');}})();
 
-// ── CONFIGURACIÓN ─────────────────────────────────────────────
-const SHEET_ID = "1EmlOHAqIQzbcvDsqLcsCaFGYyJ0Pifmsjmv9j13z8Qo";
-const API_KEY  = "AIzaSyCXaM0fXC-6H-Pz22uRTv52uMe3xtIoLkU";
+const SID="1EmlOHAqIQzbcvDsqLcsCaFGYyJ0Pifmsjmv9j13z8Qo",AK="AIzaSyCXaM0fXC-6H-Pz22uRTv52uMe3xtIoLkU";
+const CLS=[{k:'P.Terminados',c:'#3b8fd4'},{k:'Insumos',c:'#1d9e75'},{k:'Materias Primas',c:'#d4890f'},{k:'Envases',c:'#9b6dd4'},{k:'Repuestos',c:'#e05a5a'},{k:'Otros',c:'#7a7f94'}];
 
-// ── COLORES POR CLASIFICACIÓN ─────────────────────────────────
-const CLAS_COLOR = {
-  'P.Terminados':  '#3b8fd4',
-  'Insumos':       '#d4890f',
-  'Materias Primas':'#1d9e75',
-  'Envases':       '#9b6dd4',
-  'Sin clasificar':'#7a7f94',
-};
-function clasColor(c){ return CLAS_COLOR[c] || '#7a7f94'; }
+let rA=[],rH=[],aT='r',cA=null,cB=null,sCls='';
+const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;};
+const fmtM=v=>'$'+(v/1e6).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
+const fmtN=v=>Math.round(v).toLocaleString('es-CL');
+const kC=()=>{if(cA){cA.destroy();cA=null;}if(cB){cB.destroy();cB=null;}};
+const clsColor=k=>CLS.find(c=>c.k===k)?.c||'#7a7f94';
 
-// ── ESTADO ────────────────────────────────────────────────────
-let rawActual=[], rawHist=[], activeTab='actual', chartInst=null;
-let selClas='', selBodega='';
+function cOpts(u){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toLocaleString('es-CL')+' '+u}}},scales:{x:{grid:{display:false},ticks:{color:'#7a7f94',font:{size:11}},border:{color:'rgba(255,255,255,.07)'}},y:{grid:{color:'rgba(255,255,255,.05)'},border:{display:false},ticks:{color:'#7a7f94',font:{size:11},callback:v=>v.toLocaleString('es-CL')}}}};}
 
-// ── UTILS ─────────────────────────────────────────────────────
-const num  = v => { const n=parseFloat(String(v||0).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
-const fmtM = v => '$'+(v/1e6).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
-const fmtN = v => Math.round(v).toLocaleString('es-CL');
-const killChart = () => { if(chartInst){chartInst.destroy();chartInst=null;} };
-
-function cOpts(unit){
-  return{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,
-      callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-CL')} ${unit}`}}},
-    scales:{
-      x:{grid:{display:false},ticks:{color:'#7a7f94',font:{size:11}},border:{color:'rgba(255,255,255,.07)'}},
-      y:{grid:{color:'rgba(255,255,255,.05)'},border:{display:false},ticks:{color:'#7a7f94',font:{size:11},callback:v=>v.toLocaleString('es-CL')}}
-    }};
-}
-
-// ── FETCH ─────────────────────────────────────────────────────
-async function fetchSheet(tab){
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${tab}!A:P?key=${API_KEY}`;
-  const r=await fetch(url);
-  if(!r.ok) throw new Error('HTTP '+r.status+' — '+tab);
-  const d=await r.json();
-  const rows=d.values||[];
+async function fS(tab){
+  const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SID}/values/${tab}!A:M?key=${AK}`);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json(),rows=d.values||[];
   if(rows.length<2) return [];
   const h=rows[0];
   return rows.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=row[i]??'');return o;});
 }
 
-// ── TAB SWITCH ────────────────────────────────────────────────
-function showTab(t,btn){
-  activeTab=t;
-  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  render();
-}
-function render(){
-  killChart();
-  if(activeTab==='actual')    renderActual();
-  else if(activeTab==='bodega')    renderBodega();
-  else if(activeTab==='productos') renderProductos();
-  else renderHistorico();
-}
+function sT(t,btn){aT=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');rT();}
+function rT(){if(aT==='r')rR();else if(aT==='b')rB();else if(aT==='p')rP();else rHist();}
 
-// ── TAB: STOCK ACTUAL ─────────────────────────────────────────
-function renderActual(){
-  const clases=[...new Set(rawActual.map(r=>r.CLASIFICACION))].sort();
-  if(!selClas && clases.length) selClas=clases[0];
-
-  const totVal  = rawActual.reduce((s,r)=>s+num(r.Valorizado_FI),0);
-  const totUnid = rawActual.reduce((s,r)=>s+num(r['Stock Actual']),0);
-  const nProd   = new Set(rawActual.map(r=>r['Cod.Producto'])).size;
-  const nBod    = new Set(rawActual.map(r=>r['Cod.Bodega'])).size;
-
-  // Resumen por clasificación
-  const byClass={};
-  rawActual.forEach(r=>{
-    const c=r.CLASIFICACION;
-    if(!byClass[c]) byClass[c]={val:0,uni:0,prods:new Set()};
-    byClass[c].val+=num(r.Valorizado_FI);
-    byClass[c].uni+=num(r['Stock Actual']);
-    byClass[c].prods.add(r['Cod.Producto']);
-  });
-
-  // Detalle filtrado por clasificación
-  const filtered = rawActual.filter(r=>r.CLASIFICACION===selClas);
-  const byNiv2={};
-  filtered.forEach(r=>{
-    const k=r['Nivel 2']||'Sin subclasificación';
-    if(!byNiv2[k]) byNiv2[k]={val:0,uni:0};
-    byNiv2[k].val+=num(r.Valorizado_FI);
-    byNiv2[k].uni+=num(r['Stock Actual']);
-  });
-  const niv2List=Object.entries(byNiv2).sort((a,b)=>b[1].val-a[1].val);
-
-  const catBtns=clases.map(c=>
-    `<button class="cat-btn${c===selClas?' on':''}"
-      style="${c===selClas?'color:'+clasColor(c)+';border-color:'+clasColor(c)+';border-width:2px':''}"
-      onclick="selClas='${c}';renderActual()">${c}</button>`
-  ).join('');
-
-  const legH=clases.map(c=>`<span class="li"><span class="ll" style="background:${clasColor(c)}"></span>${c}</span>`).join('');
-
-  // Gráfico dona por valor
-  const pieLabels=Object.keys(byClass);
-  const pieData  =pieLabels.map(c=>Math.round(byClass[c].val/1e6*10)/10);
-  const pieColors=pieLabels.map(c=>clasColor(c));
-
-  // Tabla detalle Nivel 2
-  const rows=niv2List.map(([k,v])=>`<tr>
-    <td>${k}</td>
-    <td>${fmtN(v.uni)}</td>
-    <td>${fmtM(v.val)}</td>
-    <td>${totVal>0?(v.val/totVal*100).toFixed(1)+'%':'—'}</td>
-  </tr>`).join('');
-
+function rR(){
+  const d=rA;
+  if(!d.length){document.getElementById('mc').innerHTML='<div class="state-box"><span>Sin datos. Ejecutar emsa_sync_stock.py --once</span></div>';return;}
+  const totV=d.reduce((s,r)=>s+num(r['Valorizado_FI']),0);
+  const totU=d.filter(r=>num(r['Stock Actual'])>0).length;
+  const sinS=d.filter(r=>num(r['Stock Actual'])<=0).length;
+  const nBod=new Set(d.map(r=>r['Nombre Bodega'])).size;
+  const bCls={};CLS.forEach(c=>bCls[c.k]={val:0,unid:0,prods:0});
+  d.forEach(r=>{const cl=r.CLASIFICACION||'Otros';if(!bCls[cl])bCls[cl]={val:0,unid:0,prods:0};bCls[cl].val+=num(r['Valorizado_FI']);bCls[cl].unid+=num(r['Stock Actual']);bCls[cl].prods++;});
+  const cf=CLS.filter(c=>bCls[c.k]?.prods>0);
+  const tR=cf.map(c=>{const dd=bCls[c.k];const pct=(dd.val/totV*100).toFixed(1);return`<tr><td><span class="cdot" style="background:${c.c}"></span>${c.k}</td><td>${dd.prods.toLocaleString('es-CL')}</td><td>${fmtN(dd.unid)}</td><td>${fmtM(dd.val)}</td><td style="color:var(--muted)">${pct}%</td></tr>`;}).join('');
+  kC();
   document.getElementById('mc').innerHTML=`
-    <div class="kpis" style="margin-top:4px">
-      <div class="kpi"><div class="kpi-l">Valor total stock</div><div class="kpi-v">${fmtM(totVal)}</div><div class="kpi-s">${nProd} productos</div></div>
-      <div class="kpi"><div class="kpi-l">Unidades totales</div><div class="kpi-v">${fmtN(totUnid)}</div><div class="kpi-s">${nBod} bodegas</div></div>
-      ${clases.slice(0,2).map(c=>`
-      <div class="kpi">
-        <div class="kpi-l"><span class="cdot" style="background:${clasColor(c)}"></span>${c}</div>
-        <div class="kpi-v">${fmtM(byClass[c]?.val||0)}</div>
-        <div class="kpi-s">${fmtN(byClass[c]?.uni||0)} unidades</div>
-      </div>`).join('')}
+    <div class="kpis" style="margin-top:2px">
+      <div class="kpi"><div class="kpi-l">Valor total inventario</div><div class="kpi-v">${fmtM(totV)}</div><div class="kpi-s">${nBod} bodegas</div></div>
+      <div class="kpi"><div class="kpi-l">Con stock</div><div class="kpi-v">${totU.toLocaleString('es-CL')}</div><div class="kpi-s">items activos</div></div>
+      <div class="kpi"><div class="kpi-l">Sin stock</div><div class="kpi-v" style="color:var(--red)">${sinS.toLocaleString('es-CL')}</div><div class="kpi-s">en cero o negativo</div></div>
+      <div class="kpi"><div class="kpi-l">Fecha snapshot</div><div class="kpi-v" style="font-size:14px">${d[0]?.FECHA||'—'}</div><div class="kpi-s">ltimo sync</div></div>
     </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:14px;margin-bottom:14px">
-      <div class="card" style="margin-bottom:0">
-        <div class="ch"><div><div class="ct">Distribución por clasificación</div><div class="cs">% del valor total</div></div></div>
-        <div class="cw" style="height:220px"><canvas id="cPie"></canvas></div>
-      </div>
-      <div class="card" style="margin-bottom:0">
-        <div class="ch">
-          <div><div class="ct">Detalle por subclasificación</div><div class="cs">${selClas} · Nivel 2</div></div>
-        </div>
-        <div class="cat-sel">${catBtns}</div>
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead style="background:var(--bg3)"><tr>
-            <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase">Subclasificación</th>
-            <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted);text-transform:uppercase">Unidades</th>
-            <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted);text-transform:uppercase">Valorizado</th>
-            <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted);text-transform:uppercase">% Total</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>
-      </div>
+    <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:14px;margin-bottom:14px">
+      <div class="card" style="margin-bottom:0"><div class="ch"><div><div class="ct">Distribución por valor</div><div class="cs">% del inventario total</div></div></div><div class="cw" style="height:220px"><canvas id="cD"></canvas></div></div>
+      <div class="tbl" style="margin-bottom:0"><table><thead><tr><th>Clasificación</th><th>Productos</th><th>Unidades</th><th>Valorizado</th><th>%</th></tr></thead><tbody>${tR}</tbody></table></div>
     </div>`;
-
-  // Gráfico dona
-  killChart();
-  chartInst=new Chart(document.getElementById('cPie'),{
-    type:'doughnut',
-    data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderWidth:2,borderColor:'#13161e'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,
-        callbacks:{label:ctx=>' '+ctx.label+': M$'+ctx.parsed.toLocaleString('es-CL')}}}}
-  });
+  setTimeout(()=>{const ctx=document.getElementById('cD');if(!ctx)return;
+    cA=new Chart(ctx,{type:'doughnut',data:{labels:cf.map(c=>c.k),datasets:[{data:cf.map(c=>Math.round(bCls[c.k].val/1e6*10)/10),backgroundColor:cf.map(c=>c.c),borderWidth:2,borderColor:'#13161e'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,callbacks:{label:c=>' '+c.label+': M$'+c.parsed.toLocaleString('es-CL')}}}}});
+  },80);
 }
 
-// ── TAB: POR BODEGA ───────────────────────────────────────────
-function renderBodega(){
-  const byBod={};
-  rawActual.forEach(r=>{
-    const k=r['Nombre Bodega'];
-    if(!byBod[k]) byBod[k]={val:0,uni:0,clases:{}};
-    byBod[k].val+=num(r.Valorizado_FI);
-    byBod[k].uni+=num(r['Stock Actual']);
-    const c=r.CLASIFICACION;
-    byBod[k].clases[c]=(byBod[k].clases[c]||0)+num(r.Valorizado_FI);
-  });
-  const bods=Object.entries(byBod).sort((a,b)=>b[1].val-a[1].val);
-  const clases=[...new Set(rawActual.map(r=>r.CLASIFICACION))].sort();
-
-  const thC=clases.map(c=>`<th><span class="cdot" style="background:${clasColor(c)}"></span>${c}</th>`).join('');
-  const rows=bods.map(([b,d])=>{
-    const celdas=clases.map(c=>`<td>${d.clases[c]?fmtM(d.clases[c]):'—'}</td>`).join('');
-    return `<tr><td><b>${b}</b></td>${celdas}<td style="font-weight:600">${fmtM(d.val)}</td><td>${fmtN(d.uni)}</td></tr>`;
-  }).join('');
-
-  const barLabels=bods.slice(0,12).map(([b])=>b.length>20?b.slice(0,18)+'…':b);
-  const barData  =bods.slice(0,12).map(([,d])=>Math.round(d.val/1e6*10)/10);
-  const barColors=bods.slice(0,12).map(([,d])=>{
-    const maxC=Object.entries(d.clases).sort((a,b)=>b[1]-a[1])[0];
-    return maxC?clasColor(maxC[0])+'99':'#7a7f9499';
-  });
-
+function rB(){
+  const d=rA;if(!sCls)sCls=CLS[0].k;
+  const clsBtns=CLS.filter(c=>d.some(r=>r.CLASIFICACION===c.k)).map(c=>`<button class="cat-btn${c.k===sCls?' on':''}" style="${c.k===sCls?'color:'+c.c+';border-color:'+c.c+';border-width:2px':''}" onclick="sCls='${c.k}';rB()">${c.k}</button>`).join('');
+  const f=d.filter(r=>r.CLASIFICACION===sCls);
+  const bB={};f.forEach(r=>{const b=r['Nombre Bodega'];if(!bB[b])bB[b]={val:0,unid:0,prods:0};bB[b].val+=num(r['Valorizado_FI']);bB[b].unid+=num(r['Stock Actual']);bB[b].prods++;});
+  const s=Object.entries(bB).sort((a,b)=>b[1].val-a[1].val);
+  const ac=clsColor(sCls);
+  kC();
   document.getElementById('mc').innerHTML=`
-    <div class="card" style="margin-top:4px">
-      <div class="ch"><div><div class="ct">Valor por bodega (top 12)</div><div class="cs">Millones CLP · color = clasificación dominante</div></div></div>
-      <div class="cw" style="height:280px"><canvas id="cBod"></canvas></div>
-    </div>
-    <div class="tbl" style="overflow-x:auto">
-      <table><thead><tr><th>Bodega</th>${thC}<th>Total</th><th>Unidades</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-    </div>`;
-
-  killChart();
-  chartInst=new Chart(document.getElementById('cBod'),{
-    type:'bar',
-    data:{labels:barLabels,datasets:[{label:'Valor M$',data:barData,backgroundColor:barColors,borderRadius:4,barPercentage:.6}]},
-    options:{...cOpts('M$'),plugins:{...cOpts('M$').plugins}}
-  });
+    <div class="cat-sel" style="margin-top:2px">${clsBtns}</div>
+    <div class="card"><div class="ch"><div><div class="ct">Stock por bodega · ${sCls}</div><div class="cs">Valor M$ ordenado descendente</div></div></div><div class="cw" style="height:${Math.max(220,s.length*42+80)}px"><canvas id="cB2"></canvas></div></div>
+    <div class="tbl"><table><thead><tr><th>Bodega</th><th>Productos</th><th>Unidades</th><th>Valorizado</th></tr></thead><tbody>${s.map(([b,dd])=>`<tr><td>${b}</td><td>${dd.prods.toLocaleString('es-CL')}</td><td>${fmtN(dd.unid)}</td><td>${fmtM(dd.val)}</td></tr>`).join('')}</tbody></table></div>`;
+  setTimeout(()=>{const ctx=document.getElementById('cB2');if(!ctx)return;
+    cA=new Chart(ctx,{type:'bar',data:{labels:s.map(([b])=>b),datasets:[{label:'Valorizado M$',data:s.map(([,dd])=>Math.round(dd.val/1e6*10)/10),backgroundColor:ac+'cc',borderRadius:4,barPercentage:.6}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,callbacks:{label:c=>' M$'+c.parsed.x.toLocaleString('es-CL')}}},
+    scales:{x:{grid:{color:'rgba(255,255,255,.05)'},border:{display:false},ticks:{color:'#7a7f94',font:{size:11},callback:v=>'M$'+v}},y:{grid:{display:false},ticks:{color:'#7a7f94',font:{size:11}},border:{color:'rgba(255,255,255,.07)'}}}}});
+  },80);
 }
 
-// ── TAB: BÚSQUEDA PRODUCTOS ───────────────────────────────────
-function renderProductos(){
-  const clases=[...new Set(rawActual.map(r=>r.CLASIFICACION))].sort();
-  if(!selClas && clases.length) selClas=clases[0];
-
-  const catBtns=clases.map(c=>
-    `<button class="cat-btn${c===selClas?' on':''}"
-      style="${c===selClas?'color:'+clasColor(c)+';border-color:'+clasColor(c)+';border-width:2px':''}"
-      onclick="selClas='${c}';renderProductos()">${c}</button>`
-  ).join('');
-
-  const filtered=rawActual.filter(r=>r.CLASIFICACION===selClas)
-    .sort((a,b)=>num(b.Valorizado_FI)-num(a.Valorizado_FI));
-
-  const rows=filtered.map(r=>{
-    const cero=num(r['Stock Actual'])===0;
-    return `<tr>
-      <td>${r['Nombre Producto']} ${cero?'<span class="tag-cero">SIN STOCK</span>':''}</td>
-      <td style="color:var(--muted);font-size:11px">${r['Nombre Bodega']}</td>
-      <td style="color:var(--muted);font-size:11px">${r['Nivel 2']}</td>
-      <td class="${cero?'red':''}">${fmtN(num(r['Stock Actual']))} ${r['Uni.Med.']}</td>
-      <td>${fmtM(num(r.Valorizado_FI))}</td>
-    </tr>`;
-  }).join('');
-
+function rP(){
   document.getElementById('mc').innerHTML=`
-    <div style="margin-top:4px;margin-bottom:14px">
-      <div class="search-wrap">
-        <input id="inp-prod" placeholder="Buscar producto..." autocomplete="off"
-          oninput="filterProds(this.value)"/>
-      </div>
-      <div class="cat-sel">${catBtns}</div>
+    <div class="sw" style="margin-top:2px"><input id="ip" placeholder="Buscar producto por nombre o código..." autocomplete="off" oninput="oPI(this.value)"/><div id="pac"></div></div>
+    <div id="pa"><div class="state-box"><span>Busca un producto para ver su detalle por bodega</span></div></div>`;
+}
+function oPI(v){const ac=document.getElementById('pac');if(v.length<2){ac.style.display='none';return;}
+  const q=v.toLowerCase(),m=[...new Map(rA.filter(r=>r['Nombre Producto'].toLowerCase().includes(q)||r['Cod.Producto'].includes(q)).map(r=>[r['Cod.Producto'],r])).values()].slice(0,8);
+  if(!m.length){ac.style.display='none';return;}
+  ac.innerHTML=m.map(r=>`<div class="ac-item" onclick="sP('${r['Cod.Producto'].replace(/'/g,"\\'")}')"><b>${r['Nombre Producto']}</b> <span style="color:var(--muted);font-size:11px">${r['Cod.Producto']} · ${r.CLASIFICACION}</span></div>`).join('');
+  ac.style.display='block';
+}
+function sP(cod){
+  document.getElementById('pac').style.display='none';
+  const rows=rA.filter(r=>r['Cod.Producto']===cod);if(!rows.length)return;
+  const nm=rows[0]['Nombre Producto'];document.getElementById('ip').value=nm;
+  const totV=rows.reduce((s,r)=>s+num(r['Valorizado_FI']),0);
+  const totU=rows.reduce((s,r)=>s+num(r['Stock Actual']),0);
+  const cls=rows[0].CLASIFICACION,cc=clsColor(cls);
+  const tR=rows.sort((a,b)=>num(b['Valorizado_FI'])-num(a['Valorizado_FI'])).map(r=>`<tr><td>${r['Nombre Bodega']}</td><td>${fmtN(num(r['Stock Actual']))} ${r['Uni.Med.']}</td><td>${fmtM(num(r['Valorizado_FI']))}</td><td style="color:var(--muted);font-size:11px">${r['Nivel 2']}</td></tr>`).join('');
+  document.getElementById('pa').innerHTML=`
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div><div style="font-size:15px;font-weight:600">${nm}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${cod} · <span style="color:${cc}">${cls}</span></div></div>
     </div>
-    <div class="tbl" id="prod-tbl" style="overflow-x:auto">
-      <table><thead><tr><th>Producto</th><th>Bodega</th><th>Nivel 2</th><th>Stock</th><th>Valorizado</th></tr></thead>
-      <tbody id="prod-tbody">${rows}</tbody></table>
-    </div>`;
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:0">
+      <div class="stat"><div class="stat-l">Unidades totales</div><div class="stat-v">${fmtN(totU)} ${rows[0]['Uni.Med.']}</div></div>
+      <div class="stat"><div class="stat-l">Valor total</div><div class="stat-v">${fmtM(totV)}</div></div>
+      <div class="stat"><div class="stat-l">Bodegas</div><div class="stat-v">${rows.length}</div></div>
+    </div></div>
+    <div class="tbl"><table><thead><tr><th>Bodega</th><th>Stock</th><th>Valorizado</th><th>Sub-categoría</th></tr></thead><tbody>${tR}</tbody></table></div>`;
 }
 
-function filterProds(q){
-  const clases=[...new Set(rawActual.map(r=>r.CLASIFICACION))].sort();
-  const filtered=rawActual.filter(r=>
-    r.CLASIFICACION===selClas &&
-    (!q || r['Nombre Producto'].toLowerCase().includes(q.toLowerCase()) ||
-           (r['Nivel 2']||'').toLowerCase().includes(q.toLowerCase()))
-  ).sort((a,b)=>num(b.Valorizado_FI)-num(a.Valorizado_FI));
-
-  document.getElementById('prod-tbody').innerHTML=filtered.map(r=>{
-    const cero=num(r['Stock Actual'])===0;
-    return `<tr>
-      <td>${r['Nombre Producto']} ${cero?'<span class="tag-cero">SIN STOCK</span>':''}</td>
-      <td style="color:var(--muted);font-size:11px">${r['Nombre Bodega']}</td>
-      <td style="color:var(--muted);font-size:11px">${r['Nivel 2']}</td>
-      <td class="${cero?'red':''}">${fmtN(num(r['Stock Actual']))} ${r['Uni.Med.']}</td>
-      <td>${fmtM(num(r.Valorizado_FI))}</td>
-    </tr>`;
-  }).join('');
-}
-
-// ── TAB: EVOLUCIÓN HISTÓRICA ──────────────────────────────────
-function renderHistorico(){
-  if(!rawHist.length){
-    document.getElementById('mc').innerHTML=`
-      <div class="state-box"><span>Sin datos históricos aún.</span>
-      <span style="font-size:12px">Ejecutar py emsa_sync_stock.py --once al menos una vez por día.</span></div>`;
-    return;
-  }
-
-  const clases=[...new Set(rawHist.map(r=>r.CLASIFICACION))].sort();
-  if(!selClas && clases.length) selClas=clases[0];
-
-  const catBtns=clases.map(c=>
-    `<button class="cat-btn${c===selClas?' on':''}"
-      style="${c===selClas?'color:'+clasColor(c)+';border-color:'+clasColor(c)+';border-width:2px':''}"
-      onclick="selClas='${c}';renderHistorico()">${c}</button>`
-  ).join('');
-
-  // Agrupar por fecha para la clasificación seleccionada
-  const byFecha={};
-  rawHist.filter(r=>r.CLASIFICACION===selClas).forEach(r=>{
-    const f=r.FECHA;
-    if(!byFecha[f]) byFecha[f]={val:0,uni:0};
-    byFecha[f].val+=num(r.Valorizado_FI);
-    byFecha[f].uni+=num(r['Stock Actual']);
-  });
-
-  const fechas=Object.keys(byFecha).sort();
-  const valData=fechas.map(f=>Math.round(byFecha[f].val/1e6*10)/10);
-  const uniData=fechas.map(f=>Math.round(byFecha[f].uni));
-
-  const lastFecha=fechas[fechas.length-1];
-  const lastVal=byFecha[lastFecha]?.val||0;
-  const lastUni=byFecha[lastFecha]?.uni||0;
-  const prevVal=fechas.length>1?byFecha[fechas[fechas.length-2]]?.val||0:0;
-  const dVal=prevVal>0?((lastVal-prevVal)/prevVal*100):null;
-
+function rHist(){
+  if(!rH.length){document.getElementById('mc').innerHTML='<div class="state-box"><span>Sin datos históricos aún.</span><span style="font-size:12px">El histórico se acumula con cada sync diario.</span></div>';return;}
+  if(!sCls)sCls=CLS[0].k;
+  const fechas=[...new Set(rH.map(r=>r.FECHA))].sort();
+  const bF={};rH.forEach(r=>{if(!bF[r.FECHA])bF[r.FECHA]={};const cl=r.CLASIFICACION||'Otros';if(!bF[r.FECHA][cl])bF[r.FECHA][cl]={val:0};bF[r.FECHA][cl].val+=num(r['Valorizado_FI']);});
+  const clsBtns=CLS.filter(c=>rH.some(r=>r.CLASIFICACION===c.k)).map(c=>`<button class="cat-btn${c.k===sCls?' on':''}" style="${c.k===sCls?'color:'+c.c+';border-color:'+c.c+';border-width:2px':''}" onclick="sCls='${c.k}';rHist()">${c.k}</button>`).join('');
+  const ac=clsColor(sCls);
+  kC();
   document.getElementById('mc').innerHTML=`
-    <div class="cat-sel" style="margin-top:4px">${catBtns}</div>
-    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:18px">
-      <div class="kpi"><div class="kpi-l">Valor actual</div><div class="kpi-v">${fmtM(lastVal)}</div>
-        <div class="kpi-s" style="color:${dVal!==null&&dVal>=0?'var(--grn)':'var(--red)'}">${dVal!==null?(dVal>=0?'+':'')+dVal.toFixed(1)+'% vs día anterior':'Sin comparativo'}</div></div>
-      <div class="kpi"><div class="kpi-l">Unidades actuales</div><div class="kpi-v">${fmtN(lastUni)}</div><div class="kpi-s">${lastFecha}</div></div>
-      <div class="kpi"><div class="kpi-l">Días de historial</div><div class="kpi-v">${fechas.length}</div><div class="kpi-s">desde ${fechas[0]||'—'}</div></div>
-    </div>
-    <div class="card">
-      <div class="ch">
-        <div><div class="ct">Evolución del valor de stock — ${selClas}</div><div class="cs">Millones CLP · snapshot diario</div></div>
-        <div class="leg">
-          <span class="li"><span class="ll" style="background:${clasColor(selClas)}"></span>Valorizado M$</span>
-        </div>
-      </div>
-      <div class="cw" style="height:260px"><canvas id="cHist"></canvas></div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <div class="ch"><div><div class="ct">Evolución en unidades</div><div class="cs">Stock físico · snapshot diario</div></div></div>
-      <div class="cw" style="height:220px"><canvas id="cHistU"></canvas></div>
-    </div>`;
-
-  killChart();
-  const color=clasColor(selClas);
-  chartInst=new Chart(document.getElementById('cHist'),{
-    type:'line',
-    data:{labels:fechas,datasets:[{label:'Valor M$',data:valData,
-      borderColor:color,backgroundColor:color+'15',borderWidth:2.5,
-      pointRadius:4,pointHoverRadius:7,pointBackgroundColor:color,tension:.35,fill:true}]},
-    options:cOpts('M$')
-  });
-  new Chart(document.getElementById('cHistU'),{
-    type:'line',
-    data:{labels:fechas,datasets:[{label:'Unidades',data:uniData,
-      borderColor:color+'aa',backgroundColor:color+'0a',borderWidth:2,
-      pointRadius:3,pointHoverRadius:6,pointBackgroundColor:color+'aa',tension:.35,fill:true}]},
-    options:cOpts('un')
-  });
+    <div class="cat-sel" style="margin-top:2px">${clsBtns}</div>
+    <div class="card"><div class="ch"><div><div class="ct">Evolución histórica · ${sCls}</div><div class="cs">Valor M$ por fecha de snapshot · ${fechas.length} registros</div></div><div class="leg"><span class="li"><span class="ll" style="background:${ac}"></span>${sCls}</span></div></div><div class="cw" style="height:260px"><canvas id="cH"></canvas></div></div>
+    <div class="tbl"><table><thead><tr><th>Fecha</th><th>Valor M$</th></tr></thead><tbody>${fechas.map(f=>`<tr><td>${f}</td><td>${fmtM(bF[f]?.[sCls]?.val||0)}</td></tr>`).join('')}</tbody></table></div>`;
+  setTimeout(()=>{const ctx=document.getElementById('cH');if(!ctx)return;
+    cA=new Chart(ctx,{type:'line',data:{labels:fechas,datasets:[{label:sCls,data:fechas.map(f=>Math.round((bF[f]?.[sCls]?.val||0)/1e6*10)/10),borderColor:ac,backgroundColor:ac+'15',borderWidth:2.5,pointRadius:4,pointHoverRadius:7,pointBackgroundColor:ac,tension:.35,fill:true}]},options:cOpts('M$')});
+  },80);
 }
 
-// ── INIT ──────────────────────────────────────────────────────
 (async()=>{
   try{
-    [rawActual] = await Promise.all([fetchSheet('stock_actual')]);
-    try{ rawHist = await fetchSheet('stock_historico'); }catch(e){ rawHist=[]; }
-
-    const meta = await (async()=>{
-      try{
-        const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/meta!A1?key=${API_KEY}`);
-        const d=await r.json(); return d.values?.[0]?.[0]||'';
-      }catch(e){return '';}
-    })();
-
-    const totVal=rawActual.reduce((s,r)=>s+num(r.Valorizado_FI),0);
-    document.getElementById('last-sync').textContent=
-      '$'+Math.round(totVal/1e6).toLocaleString('es-CL')+'M'+(meta?' · '+meta:'');
-
-    render();
-  }catch(e){
-    document.getElementById('mc').innerHTML=`
-      <div class="state-box">
-        <span style="color:#c94a4a">Error al cargar datos</span>
-        <span style="font-size:12px">${e.message}</span>
-        <span style="font-size:11px;color:#7a7f94">Verificar que el Sheet es público y tiene datos</span>
-      </div>`;
-  }
+    [rA,rH]=await Promise.all([fS('stock_actual'),fS('stock_historico')]);
+    try{const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SID}/values/meta!A1?key=${AK}`);const d=await r.json();const v=d.values?.[0]?.[0];document.getElementById('ls').textContent=v?'Sync: '+v:'Sin datos';}catch(e){document.getElementById('ls').textContent='Sin datos';}
+    if(!rA.length){document.getElementById('mc').innerHTML='<div class="state-box"><span>Sheet vacío.</span><span style="font-size:12px">Ejecutar: py emsa_sync_stock.py --once</span></div>';return;}
+    rR();
+  }catch(e){document.getElementById('mc').innerHTML=`<div class="state-box"><span style="color:var(--red)">Error al cargar datos</span><span style="font-size:12px">${e.message}</span></div>`;}
 })();
 </script>
 </body>
