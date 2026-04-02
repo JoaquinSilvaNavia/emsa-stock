@@ -146,8 +146,8 @@ function rR(){
 
   // Detalle: productos de la clasificación activa, agrupados por bodega
   const filt=d.filter(r=>r.CLASIFICACION===sCls);
-  const bodegas=[...new Set(filt.map(r=>r['Nombre Bodega']))].sort();
-  if(!sB && bodegas.length) sB=bodegas[0];
+  const bodegas=[...new Set(filt.filter(r=>num(r['Stock Actual'])>0).map(r=>r['Nombre Bodega']))].sort();
+  if(!sB || !bodegas.includes(sB)) sB=bodegas[0]||'';
 
   const bodBtns=bodegas.map(b=>`<button class="cat-btn${b===sB?' on':''}"
     style="font-size:11px;padding:3px 10px;${b===sB?'color:'+clsColor(sCls)+';border-color:'+clsColor(sCls)+';border-width:2px':''}"
