@@ -214,9 +214,12 @@ function rR(){
         <div class="kpi-s">${(bCls['Insumos']?.prods||0)+(bCls['Materias Primas']?.prods||0)} productos</div>
       </div>
       <div class="kpi">
-        <div class="kpi-l">Sin stock</div>
-        <div class="kpi-v" style="color:var(--red)">${sinS.toLocaleString('es-CL')}</div>
-        <div class="kpi-s">items en cero o negativo</div>
+        <div class="kpi-l">Resina Russfin</div>
+        <div class="kpi-v" style="color:var(--c-mp)">${(()=>{
+          const russfin=d.filter(r=>(r['Nombre Bodega']||'').toLowerCase().includes('russfin')&&(r['Nombre Bodega']||'').toLowerCase().includes('linares'));
+          return russfin.length?fmtN(russfin.reduce((s,r)=>s+num(r['Stock Actual']),0)):fmtN(0);
+        })()}</div>
+        <div class="kpi-s">Bodega Russfin Linares</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:14px;margin-bottom:14px">
