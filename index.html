@@ -87,6 +87,7 @@ main{padding:18px 20px 48px;max-width:1060px}
   <button class="tab"    onclick="sT('b',this)">Por bodega</button>
   <button class="tab"    onclick="sT('p',this)">Búsqueda producto</button>
   <button class="tab"    onclick="sT('h',this)">Histórico</button>
+  <button class="tab"    onclick="sT('mp',this)">Consumos MP</button>
 </div>
 <main id="mc"><div class="state-box"><div class="spinner"></div><span>Cargando datos...</span></div></main>
 
@@ -94,10 +95,12 @@ main{padding:18px 20px 48px;max-width:1060px}
 <script>
 (function(){var K='emsa_auth',P='LuisSilvaEMSA';if(localStorage.getItem(K)===P)return;var ok=false;while(!ok){var i=prompt('EMSA — Ingresa la clave de acceso:');if(i===null){document.body.innerHTML='';return;}if(i===P){localStorage.setItem(K,P);ok=true;}else alert('Clave incorrecta.');}})();
 
-const SID="1EmlOHAqIQzbcvDsqLcsCaFGYyJ0Pifmsjmv9j13z8Qo",AK="AIzaSyCXaM0fXC-6H-Pz22uRTv52uMe3xtIoLkU";
+const SID="1EmlOHAqIQzbcvDsqLcsCaFGYyJ0Pifmsjmv9j13z8Qo";
+const SID_V="1NppGV5go7xHYgEPUOERpljT9bvKdgaRkDbKyM41YaHY"; // Sheet Ventas — tiene consumos MP,AK="AIzaSyCXaM0fXC-6H-Pz22uRTv52uMe3xtIoLkU";
 const CLS=[{k:'P.Terminados',c:'#3b8fd4'},{k:'Insumos',c:'#1d9e75'},{k:'Materias Primas',c:'#d4890f'},{k:'Envases',c:'#9b6dd4'},{k:'Repuestos',c:'#e05a5a'},{k:'Otros',c:'#7a7f94'}];
 
-let rA=[],rH=[],aT='r',cA=null,cB=null,sCls='',sB='',vM='val'; // vM: 'val'=$ 'uni'=cantidad
+let rA=[],rH=[],aT='r',cA=null,cB=null,sCls='',sB='',vM='val';
+let rCons=[],rMermas=[],rDetMP=[],mpCls='',mpN2=''; // vM: 'val'=$ 'uni'=cantidad
 const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;};
 const fmtM=v=>'$'+(v/1e6).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
 const fmtN=v=>Math.round(v).toLocaleString('es-CL');
@@ -116,7 +119,7 @@ async function fS(tab){
 }
 
 function sT(t,btn){aT=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');rT();}
-function rT(){if(aT==='r')rR();else if(aT==='b')rB();else if(aT==='p')rP();else rHist();}
+function rT(){if(aT==='r')rR();else if(aT==='b')rB();else if(aT==='p')rP();else if(aT==='h')rHist();else rMP();}
 
 function rR(){
   const d=rA;
@@ -356,6 +359,189 @@ function rHist(){
   setTimeout(()=>{const ctx=document.getElementById('cH');if(!ctx)return;
     cA=new Chart(ctx,{type:'line',data:{labels:fechas,datasets:[{label:sCls,data:fechas.map(f=>Math.round((bF[f]?.[sCls]?.val||0)/1e6*10)/10),borderColor:ac,backgroundColor:ac+'15',borderWidth:2.5,pointRadius:4,pointHoverRadius:7,pointBackgroundColor:ac,tension:.35,fill:true}]},options:cOpts('M$')});
   },80);
+}
+
+// ── CONSUMOS MATERIA PRIMA ───────────────────────────────────
+async function ensureMP(){
+  if(rCons.length) return;
+  async function fetchV(tab){
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SID_V}/values/${tab}!A:F?key=${AK}`);
+    if(!r.ok) throw new Error('HTTP '+r.status+' -- '+tab);
+    const d=await r.json(),rows=d.values||[];
+    if(rows.length<2) return [];
+    const h=rows[0];
+    return rows.slice(1).map(row=>{const o={};h.forEach((k,i)=>o[k]=row[i]??'');return o;});
+  }
+  [rCons,rMermas,rDetMP]=await Promise.all([fetchV('consumos_mp'),fetchV('mermas_mp'),fetchV('detalle_mp')]);
+}
+
+const CLS_MP=[
+  {k:'Materia Prima',    c:'#1d9e75'},
+  {k:'Material Embalaje',c:'#3b8fd4'},
+  {k:'Insumos',          c:'#d4890f'},
+  {k:'Envases PET',      c:'#9b6dd4'},
+  {k:'Resina',           c:'#e05a5a'},
+];
+
+async function rMP(){
+  const mc=document.getElementById('mc');
+  mc.innerHTML='<div class="state-box"><div class="spinner"></div><span>Cargando consumos MP...</span></div>';
+  try{ await ensureMP(); }
+  catch(e){ mc.innerHTML=`<div class="state-box"><span style="color:var(--red)">Error: ${e.message}</span><span style="font-size:11px">Ejecutar sync actualizado y crear pestañas consumos_mp, mermas_mp, detalle_mp en el Sheet de Ventas</span></div>`; return; }
+
+  if(!rCons.length){ mc.innerHTML='<div class="state-box"><span>Sin datos. Ejecutar emsa_sync_ventas.py --once con el script actualizado.</span></div>'; return; }
+
+  const clases=CLS_MP.filter(c=>rCons.some(r=>r['Nivel 1']===c.k));
+  if(!mpCls && clases.length) mpCls=clases[0].k;
+  const clsColor=CLS_MP.find(c=>c.k===mpCls)?.c||'#7a7f94';
+
+  // Períodos disponibles
+  const periodos=[...new Set(rCons.map(r=>r.PERIODO))].sort();
+
+  // Consumos de la clase activa por período
+  const pvC={};
+  rCons.filter(r=>r['Nivel 1']===mpCls).forEach(r=>pvC[r.PERIODO]=(pvC[r.PERIODO]||0)+num(r.VALOR));
+
+  // Mermas de la clase activa por período
+  const pvM={};
+  rMermas.filter(r=>r['Nivel 1']===mpCls).forEach(r=>pvM[r.PERIODO]=(pvM[r.PERIODO]||0)+num(r.VALOR_MERMA));
+
+  // KPIs
+  const totCons=Object.values(pvC).reduce((s,v)=>s+v,0);
+  const totMerma=Object.values(pvM).reduce((s,v)=>s+v,0);
+  const pctMerma=totCons>0?(totMerma/totCons*100).toFixed(1):null;
+
+  // Promedio mensual (últimos 3 meses con datos)
+  const ultMeses=periodos.filter(p=>pvC[p]>0).slice(-3);
+  const promMens=ultMeses.length?Math.round(ultMeses.reduce((s,p)=>s+(pvC[p]||0),0)/ultMeses.length):0;
+
+  // Cobertura: stock actual de MP vs consumo mensual promedio
+  const stockMP=rA.filter(r=>r.CLASIFICACION===mpCls||r['Nivel 1']===mpCls).reduce((s,r)=>s+num(r['Valorizado_FI']),0);
+  const cobertura=promMens>0?Math.round(stockMP/promMens*30):null; // días
+
+  // Top productos consumidos (todos los períodos)
+  const byProd={};
+  rDetMP.filter(r=>r['Nivel 1']===mpCls&&(!mpN2||r['Nivel 2']===mpN2)).forEach(r=>{
+    const k=r['Nombre Producto']||r['Nivel 2'];
+    if(!byProd[k]) byProd[k]={n2:r['Nivel 2'],val:0};
+    byProd[k].val+=num(r.VALOR);
+  });
+  const topProds=Object.entries(byProd).sort((a,b)=>b[1].val-a[1].val).slice(0,10);
+
+  // Botones clasificación
+  const clsBtns=clases.map(c=>`<button class="cat-btn${c.k===mpCls?' on':''}"
+    style="${c.k===mpCls?'color:'+c.c+';border-color:'+c.c+';border-width:2px':''}"
+    onclick="mpCls='${c.k}';mpN2='';rMP()">${c.k}</button>`).join('');
+
+  // Nivel 2 disponibles
+  const n2s=[...new Set(rDetMP.filter(r=>r['Nivel 1']===mpCls).map(r=>r['Nivel 2']))].sort();
+  const n2Btns=`<span style="font-size:11px;color:var(--muted);margin-right:6px">Subcategoría:</span>`+
+    ['',...n2s].map(n=>`<button class="cat-btn${n===mpN2?' on':''}"
+      style="font-size:11px;padding:3px 10px;${n===mpN2?'color:'+clsColor+';border-color:'+clsColor+';border-width:2px':''}"
+      onclick="mpN2='${n}';rMP()">${n||'Todas'}</button>`).join('');
+
+  // Tabla de consumos por período
+  const tRows=periodos.map(p=>{
+    const c=pvC[p]||0, m=pvM[p]||0, pct=c>0?(m/c*100).toFixed(1):null;
+    return `<tr>
+      <td>${p}</td>
+      <td>${c>0?fmtM(c):'—'}</td>
+      <td style="color:${m>0?'var(--red)':'var(--muted)'}">${m>0?fmtM(m):'—'}</td>
+      <td style="color:${pct&&parseFloat(pct)>5?'var(--red)':pct?'var(--amb)':'var(--muted)'}">${pct?pct+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Tabla top productos
+  const prodRows=topProds.map(([n,d])=>`<tr>
+    <td>${n}</td>
+    <td style="color:var(--muted);font-size:11px">${d.n2}</td>
+    <td>${fmtM(d.val)}</td>
+    <td style="color:var(--muted);font-size:11px">${totCons>0?(d.val/totCons*100).toFixed(1)+'%':'—'}</td>
+  </tr>`).join('');
+
+  mc.innerHTML=`
+    <div class="cat-sel" style="margin-top:4px">${clsBtns}</div>
+    <div class="cat-sel" style="margin-bottom:14px">${n2Btns}</div>
+    <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:18px">
+      <div class="kpi" style="border-left:3px solid ${clsColor}">
+        <div class="kpi-l">Consumo total</div>
+        <div class="kpi-v" style="color:${clsColor}">${fmtM(totCons)}</div>
+        <div class="kpi-s">${periodos.filter(p=>pvC[p]>0).length} meses con datos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Mermas estimadas</div>
+        <div class="kpi-v" style="color:${totMerma>0?'var(--red)':'var(--muted)'}">${fmtM(totMerma)}</div>
+        <div class="kpi-s">${pctMerma?pctMerma+'% del consumo':'sin datos'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Promedio mensual</div>
+        <div class="kpi-v">${fmtM(promMens)}</div>
+        <div class="kpi-s">últimos 3 meses</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Cobertura stock</div>
+        <div class="kpi-v" style="color:${cobertura&&cobertura<15?'var(--red)':cobertura&&cobertura<30?'var(--amb)':'var(--grn)'}">${cobertura?cobertura+' días':'—'}</div>
+        <div class="kpi-s">stock vs consumo mensual</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="card" style="margin-bottom:0">
+        <div class="ch">
+          <div><div class="ct">Consumo vs Mermas · ${mpCls}</div><div class="cs">Valor M$ por período</div></div>
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:${clsColor}"></span>Consumo</span>
+            <span class="li"><span class="ll" style="background:var(--red)"></span>Mermas</span>
+          </div>
+        </div>
+        <div class="cw" style="height:240px"><canvas id="cMP"></canvas></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="ch"><div><div class="ct">Top 10 productos consumidos</div><div class="cs">${mpN2||'Todas las subcategorías'}</div></div></div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead style="background:var(--bg3)"><tr>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase">Producto</th>
+            <th style="padding:7px 10px;text-align:left;font-size:10px;color:var(--muted)">Subcategoría</th>
+            <th style="padding:7px 10px;text-align:right;font-size:10px;color:var(--muted)">Valor</th>
+            <th style="padding:7px 10px;text-align:right;font-size:10px;color:var(--muted)">%</th>
+          </tr></thead>
+          <tbody style="font-family:var(--mono)">${prodRows}</tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Detalle por período · consumo y mermas</div></div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead style="background:var(--bg3)"><tr>
+          <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase">Período</th>
+          <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted)">Consumo M$</th>
+          <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted)">Mermas M$</th>
+          <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted)">% Merma</th>
+        </tr></thead>
+        <tbody style="font-family:var(--mono);font-size:11px">${tRows}</tbody>
+      </table></div>
+    </div>`;
+
+  kC();
+  cA=new Chart(document.getElementById('cMP'),{
+    type:'bar',
+    data:{labels:periodos,datasets:[
+      {label:'Consumo M$',data:periodos.map(p=>Math.round((pvC[p]||0)/1e6*10)/10),
+       backgroundColor:clsColor+'cc',borderRadius:4,barPercentage:.5,categoryPercentage:.75},
+      {label:'Mermas M$',data:periodos.map(p=>Math.round((pvM[p]||0)/1e6*10)/10),
+       backgroundColor:'rgba(201,74,74,.7)',borderRadius:4,barPercentage:.5,categoryPercentage:.75}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+        titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,
+        callbacks:{label:c=>` ${c.dataset.label}: M$${c.parsed.y.toLocaleString('es-CL')}`}}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#7a7f94',font:{size:10}},border:{color:'rgba(255,255,255,.07)'}},
+        y:{grid:{color:'rgba(255,255,255,.05)'},border:{display:false},
+          ticks:{color:'#7a7f94',font:{size:11},callback:v=>'M$'+v}}
+      }
+    }
+  });
 }
 
 (async()=>{
