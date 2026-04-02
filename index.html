@@ -97,7 +97,7 @@ main{padding:18px 20px 48px;max-width:1060px}
 const SID="1EmlOHAqIQzbcvDsqLcsCaFGYyJ0Pifmsjmv9j13z8Qo",AK="AIzaSyCXaM0fXC-6H-Pz22uRTv52uMe3xtIoLkU";
 const CLS=[{k:'P.Terminados',c:'#3b8fd4'},{k:'Insumos',c:'#1d9e75'},{k:'Materias Primas',c:'#d4890f'},{k:'Envases',c:'#9b6dd4'},{k:'Repuestos',c:'#e05a5a'},{k:'Otros',c:'#7a7f94'}];
 
-let rA=[],rH=[],aT='r',cA=null,cB=null,sCls='';
+let rA=[],rH=[],aT='r',cA=null,cB=null,sCls='',sB='',vM='val'; // vM: 'val'=$ 'uni'=cantidad
 const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;};
 const fmtM=v=>'$'+(v/1e6).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'M';
 const fmtN=v=>Math.round(v).toLocaleString('es-CL');
@@ -121,29 +121,112 @@ function rT(){if(aT==='r')rR();else if(aT==='b')rB();else if(aT==='p')rP();else 
 function rR(){
   const d=rA;
   if(!d.length){document.getElementById('mc').innerHTML='<div class="state-box"><span>Sin datos. Ejecutar emsa_sync_stock.py --once</span></div>';return;}
+  if(!sCls) sCls=CLS.find(c=>d.some(r=>r.CLASIFICACION===c.k))?.k||'';
+
   const totV=d.reduce((s,r)=>s+num(r['Valorizado_FI']),0);
   const totU=d.filter(r=>num(r['Stock Actual'])>0).length;
   const sinS=d.filter(r=>num(r['Stock Actual'])<=0).length;
   const nBod=new Set(d.map(r=>r['Nombre Bodega'])).size;
+
+  // Resumen por clasificación
   const bCls={};CLS.forEach(c=>bCls[c.k]={val:0,unid:0,prods:0});
   d.forEach(r=>{const cl=r.CLASIFICACION||'Otros';if(!bCls[cl])bCls[cl]={val:0,unid:0,prods:0};bCls[cl].val+=num(r['Valorizado_FI']);bCls[cl].unid+=num(r['Stock Actual']);bCls[cl].prods++;});
   const cf=CLS.filter(c=>bCls[c.k]?.prods>0);
-  const tR=cf.map(c=>{const dd=bCls[c.k];const pct=(dd.val/totV*100).toFixed(1);return`<tr><td><span class="cdot" style="background:${c.c}"></span>${c.k}</td><td>${dd.prods.toLocaleString('es-CL')}</td><td>${fmtN(dd.unid)}</td><td>${fmtM(dd.val)}</td><td style="color:var(--muted)">${pct}%</td></tr>`;}).join('');
+
+  // Botones clasificación
+  const clsBtns=cf.map(c=>`<button class="cat-btn${c.k===sCls?' on':''}"
+    style="${c.k===sCls?'color:'+c.c+';border-color:'+c.c+';border-width:2px':''}"
+    onclick="sCls='${c.k}';sB='';rR()">${c.k}</button>`).join('');
+
+  // Toggle $  / cantidad
+  const toggleHTML=`<div style="display:flex;gap:4px;align-items:center">
+    <button class="cat-btn${vM==='val'?' on':''}" style="font-size:11px;padding:3px 10px;${vM==='val'?'color:'+clsColor(sCls)+';border-color:'+clsColor(sCls)+';border-width:2px':''}" onclick="vM='val';rR()">$</button>
+    <button class="cat-btn${vM==='uni'?' on':''}" style="font-size:11px;padding:3px 10px;${vM==='uni'?'color:'+clsColor(sCls)+';border-color:'+clsColor(sCls)+';border-width:2px':''}" onclick="vM='uni';rR()">Cant.</button>
+  </div>`;
+
+  // Detalle: productos de la clasificación activa, agrupados por bodega
+  const filt=d.filter(r=>r.CLASIFICACION===sCls);
+  const bodegas=[...new Set(filt.map(r=>r['Nombre Bodega']))].sort();
+  if(!sB && bodegas.length) sB=bodegas[0];
+
+  const bodBtns=bodegas.map(b=>`<button class="cat-btn${b===sB?' on':''}"
+    style="font-size:11px;padding:3px 10px;${b===sB?'color:'+clsColor(sCls)+';border-color:'+clsColor(sCls)+';border-width:2px':''}"
+    onclick="sB='${b.replace(/'/g,"\'")}';rR()">${b.length>22?b.slice(0,20)+'…':b}</button>`).join('');
+
+  const prodsBod=filt.filter(r=>r['Nombre Bodega']===sB)
+    .sort((a,b)=>vM==='val'?num(b['Valorizado_FI'])-num(a['Valorizado_FI']):num(b['Stock Actual'])-num(a['Stock Actual']));
+
+  const totBodV=prodsBod.reduce((s,r)=>s+num(r['Valorizado_FI']),0);
+  const totBodU=prodsBod.reduce((s,r)=>s+num(r['Stock Actual']),0);
+
+  const detRows=prodsBod.map(r=>{
+    const cero=num(r['Stock Actual'])<=0;
+    return `<tr>
+      <td style="font-size:11px;color:var(--muted)">${r['Cod.Producto']}</td>
+      <td>${r['Nombre Producto']}${cero?' <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(201,74,74,.15);color:var(--red)">SIN STOCK</span>':''}</td>
+      <td style="color:var(--muted);font-size:11px">${r['Nivel 2']||'—'}</td>
+      <td class="${cero?'red':''}">${fmtN(num(r['Stock Actual']))} ${r['Uni.Med.']}</td>
+      <td>${fmtM(num(r['Valorizado_FI']))}</td>
+    </tr>`;
+  }).join('');
+
+  // Tabla resumen por clasificación
+  const tR=cf.map(c=>{const dd=bCls[c.k];const pct=(dd.val/totV*100).toFixed(1);
+    return`<tr style="cursor:pointer" onclick="sCls='${c.k}';sB='';rR()">
+      <td><span class="cdot" style="background:${c.c}"></span>${c.k}</td>
+      <td>${dd.prods.toLocaleString('es-CL')}</td>
+      <td>${vM==='uni'?'<b>'+fmtN(dd.unid)+'</b>':fmtN(dd.unid)}</td>
+      <td>${vM==='val'?'<b>'+fmtM(dd.val)+'</b>':fmtM(dd.val)}</td>
+      <td style="color:var(--muted)">${pct}%</td>
+    </tr>`;}).join('');
+
   kC();
   document.getElementById('mc').innerHTML=`
     <div class="kpis" style="margin-top:2px">
       <div class="kpi"><div class="kpi-l">Valor total inventario</div><div class="kpi-v">${fmtM(totV)}</div><div class="kpi-s">${nBod} bodegas</div></div>
       <div class="kpi"><div class="kpi-l">Con stock</div><div class="kpi-v">${totU.toLocaleString('es-CL')}</div><div class="kpi-s">items activos</div></div>
       <div class="kpi"><div class="kpi-l">Sin stock</div><div class="kpi-v" style="color:var(--red)">${sinS.toLocaleString('es-CL')}</div><div class="kpi-s">en cero o negativo</div></div>
-      <div class="kpi"><div class="kpi-l">Fecha snapshot</div><div class="kpi-v" style="font-size:14px">${d[0]?.FECHA||'—'}</div><div class="kpi-s">ltimo sync</div></div>
+      <div class="kpi"><div class="kpi-l">Fecha snapshot</div><div class="kpi-v" style="font-size:14px">${d[0]?.FECHA||'—'}</div><div class="kpi-s">último sync</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:14px;margin-bottom:14px">
-      <div class="card" style="margin-bottom:0"><div class="ch"><div><div class="ct">Distribución por valor</div><div class="cs">% del inventario total</div></div></div><div class="cw" style="height:220px"><canvas id="cD"></canvas></div></div>
-      <div class="tbl" style="margin-bottom:0"><table><thead><tr><th>Clasificación</th><th>Productos</th><th>Unidades</th><th>Valorizado</th><th>%</th></tr></thead><tbody>${tR}</tbody></table></div>
+      <div class="card" style="margin-bottom:0">
+        <div class="ch"><div><div class="ct">Distribución por valor</div><div class="cs">% del inventario total</div></div></div>
+        <div class="cw" style="height:220px"><canvas id="cD"></canvas></div>
+      </div>
+      <div class="tbl" style="margin-bottom:0"><table>
+        <thead><tr><th>Clasificación</th><th>Productos</th><th>Unidades</th><th>Valorizado</th><th>%</th></tr></thead>
+        <tbody>${tR}</tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <div><div class="ct">Detalle productos · ${sCls}</div><div class="cs">${prodsBod.length} productos · ${sB}</div></div>
+        ${toggleHTML}
+      </div>
+      <div class="cat-sel" style="margin-bottom:10px">${clsBtns}</div>
+      <div class="cat-sel" style="margin-bottom:14px">${bodBtns}</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead style="background:var(--bg3)"><tr>
+          <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase">Código</th>
+          <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase">Producto</th>
+          <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase">Subcategoría</th>
+          <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted);text-transform:uppercase">${vM==='uni'?'<b>Cantidad</b>':'Cantidad'}</th>
+          <th style="padding:8px 12px;text-align:right;font-size:10px;color:var(--muted);text-transform:uppercase">${vM==='val'?'<b>Valorizado</b>':'Valorizado'}</th>
+        </tr></thead>
+        <tbody style="font-family:var(--mono);font-size:11px">${detRows}</tbody>
+        <tfoot><tr style="background:var(--bg3)">
+          <td colspan="3" style="padding:8px 12px;font-size:11px;font-weight:600;text-align:left;font-family:var(--font)">TOTAL ${sB}</td>
+          <td style="padding:8px 12px;text-align:right;font-weight:600">${fmtN(totBodU)}</td>
+          <td style="padding:8px 12px;text-align:right;font-weight:600">${fmtM(totBodV)}</td>
+        </tr></tfoot>
+      </table></div>
     </div>`;
+
   setTimeout(()=>{const ctx=document.getElementById('cD');if(!ctx)return;
     cA=new Chart(ctx,{type:'doughnut',data:{labels:cf.map(c=>c.k),datasets:[{data:cf.map(c=>Math.round(bCls[c.k].val/1e6*10)/10),backgroundColor:cf.map(c=>c.c),borderWidth:2,borderColor:'#13161e'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,callbacks:{label:c=>' '+c.label+': M$'+c.parsed.toLocaleString('es-CL')}}}}});
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},
+    tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,
+    callbacks:{label:c=>' '+c.label+': M$'+c.parsed.toLocaleString('es-CL')}}}}});
   },80);
 }
 
