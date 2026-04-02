@@ -221,7 +221,10 @@ function rR(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:14px;margin-bottom:14px">
       <div class="card" style="margin-bottom:0">
-        <div class="ch"><div><div class="ct">Distribución por valor</div><div class="cs">% del inventario total</div></div></div>
+        <div class="ch"><div>
+          <div class="ct" id="dona-title">Distribución por valor</div>
+          <div class="cs" id="dona-sub">% del inventario total</div>
+        </div></div>
         <div class="cw" style="height:220px"><canvas id="cD"></canvas></div>
       </div>
       <div class="tbl" style="margin-bottom:0"><table>
@@ -253,11 +256,35 @@ function rR(){
       </table></div>
     </div>`;
 
+  // Dona: composición interna de la clasificación activa (por Nivel 2)
   setTimeout(()=>{const ctx=document.getElementById('cD');if(!ctx)return;
-    cA=new Chart(ctx,{type:'doughnut',data:{labels:cf.map(c=>c.k),datasets:[{data:cf.map(c=>Math.round(bCls[c.k].val/1e6*10)/10),backgroundColor:cf.map(c=>c.c),borderWidth:2,borderColor:'#13161e'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},
-    tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,
-    callbacks:{label:c=>' '+c.label+': M$'+c.parsed.toLocaleString('es-CL')}}}}});
+    const filtNiv2=d.filter(r=>r.CLASIFICACION===sCls);
+    const byN2={};
+    filtNiv2.forEach(r=>{
+      const k=r['Nivel 2']||'Sin subcategoría';
+      if(!byN2[k]) byN2[k]=0;
+      byN2[k]+=vM==='val'?num(r['Valorizado_FI']):num(r['Stock Actual']);
+    });
+    const n2entries=Object.entries(byN2).sort((a,b)=>b[1]-a[1]);
+    const clsC=clsColor(sCls);
+    // Generar paleta de tonos del color de la clasificación
+    const alphas=['ff','cc','99','77','55','33'];
+    const pieLabels=n2entries.map(([k])=>k);
+    const pieData=n2entries.map(([,v])=>vM==='val'?Math.round(v/1e6*10)/10:Math.round(v));
+    const pieColors=n2entries.map((_,i)=>clsC+(alphas[i%alphas.length]));
+
+    // Actualizar subtítulo de la dona
+    const dt=document.getElementById('dona-title');
+    const ds=document.getElementById('dona-sub');
+    if(dt) dt.textContent='Composición · '+sCls;
+    if(ds) ds.textContent=(vM==='val'?'Valorizado M$':'Unidades')+' por Nivel 2';
+
+    cA=new Chart(ctx,{type:'doughnut',
+      data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:pieColors,borderWidth:2,borderColor:'#13161e'}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+        plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a7f94',padding:10,
+        callbacks:{label:c=>' '+c.label+': '+(vM==='val'?'M$'+c.parsed.toLocaleString('es-CL'):c.parsed.toLocaleString('es-CL')+' un')}}}}});
   },80);
 }
 
