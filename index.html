@@ -181,12 +181,43 @@ function rR(){
     </tr>`;}).join('');
 
   kC();
+  // KPIs agrupados: PT, Insumos+MP juntos
+  const vPT  = bCls['P.Terminados']?.val||0;
+  const uPT  = bCls['P.Terminados']?.unid||0;
+  const vIns = (bCls['Insumos']?.val||0)+(bCls['Materias Primas']?.val||0);
+  const uIns = (bCls['Insumos']?.unid||0)+(bCls['Materias Primas']?.unid||0);
+  // Toggle $ / unidades en header
+  const toggleKPI=`<div style="display:flex;gap:4px">
+    <button class="cat-btn${vM==='val'?' on':''}" style="font-size:11px;padding:3px 10px;${vM==='val'?'color:var(--pur);border-color:var(--pur);border-width:2px':''}" onclick="vM='val';rR()">$</button>
+    <button class="cat-btn${vM==='uni'?' on':''}" style="font-size:11px;padding:3px 10px;${vM==='uni'?'color:var(--pur);border-color:var(--pur);border-width:2px':''}" onclick="vM='uni';rR()">Cant.</button>
+  </div>`;
+
   document.getElementById('mc').innerHTML=`
-    <div class="kpis" style="margin-top:2px">
-      <div class="kpi"><div class="kpi-l">Valor total inventario</div><div class="kpi-v">${fmtM(totV)}</div><div class="kpi-s">${nBod} bodegas</div></div>
-      <div class="kpi"><div class="kpi-l">Con stock</div><div class="kpi-v">${totU.toLocaleString('es-CL')}</div><div class="kpi-s">items activos</div></div>
-      <div class="kpi"><div class="kpi-l">Sin stock</div><div class="kpi-v" style="color:var(--red)">${sinS.toLocaleString('es-CL')}</div><div class="kpi-s">en cero o negativo</div></div>
-      <div class="kpi"><div class="kpi-l">Fecha snapshot</div><div class="kpi-v" style="font-size:14px">${d[0]?.FECHA||'—'}</div><div class="kpi-s">último sync</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;margin-bottom:12px">
+      <span style="font-size:12px;color:var(--muted)">Snapshot: ${d[0]?.FECHA||'—'}</span>
+      ${toggleKPI}
+    </div>
+    <div class="kpis" style="margin-top:0">
+      <div class="kpi">
+        <div class="kpi-l">Inventario total</div>
+        <div class="kpi-v">${vM==='val'?fmtM(totV):fmtN(d.reduce((s,r)=>s+num(r['Stock Actual']),0))}</div>
+        <div class="kpi-s">${nBod} bodegas · ${new Set(d.map(r=>r['Cod.Producto'])).size} productos</div>
+      </div>
+      <div class="kpi" style="border-left:3px solid var(--c-pt)">
+        <div class="kpi-l"><span class="cdot" style="background:var(--c-pt)"></span>Prod. Terminados</div>
+        <div class="kpi-v" style="color:var(--c-pt)">${vM==='val'?fmtM(vPT):fmtN(uPT)}</div>
+        <div class="kpi-s">${bCls['P.Terminados']?.prods||0} productos</div>
+      </div>
+      <div class="kpi" style="border-left:3px solid var(--c-ins)">
+        <div class="kpi-l"><span class="cdot" style="background:var(--c-ins)"></span>Insumos + Mat. Primas</div>
+        <div class="kpi-v" style="color:var(--c-ins)">${vM==='val'?fmtM(vIns):fmtN(uIns)}</div>
+        <div class="kpi-s">${(bCls['Insumos']?.prods||0)+(bCls['Materias Primas']?.prods||0)} productos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-l">Sin stock</div>
+        <div class="kpi-v" style="color:var(--red)">${sinS.toLocaleString('es-CL')}</div>
+        <div class="kpi-s">items en cero o negativo</div>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.8fr;gap:14px;margin-bottom:14px">
       <div class="card" style="margin-bottom:0">
